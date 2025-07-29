@@ -92,6 +92,33 @@ def convert_to_lrc_lines(subs: List[Tuple[float, float, str]], offset: float) ->
 #  主执行模块 (已重构)
 # ==============================================================================
 
+
+def convert_to_spatial_stereo(audio_path: str):
+    """转换为空间立体声"""
+    print("🔧 转换为空间立体声...")
+    temp_path = audio_path + ".temp.mp3"
+    
+    # 使用空间立体声滤镜
+    filter_chain = "extrastereo=m=2.5,haas=level_in=1:level_out=1:side_gain=0.8,volume=0.7"
+    convert_cmd = ["ffmpeg", "-i", audio_path, "-af", filter_chain, "-ac", "2", "-ar", "44100", "-b:a", "192k", "-y", temp_path]
+    
+    try:
+        run_command(convert_cmd)
+        os.replace(temp_path, audio_path)
+        print("✅ 空间立体声转换完成！耳机两边现在应该有明显的立体声效果")
+        
+        # 验证转换结果
+        verify_cmd = ["ffprobe", "-v", "quiet", "-show_entries", "stream=channels", "-of", "csv=p=0", audio_path]
+        verify_result = run_command(verify_cmd, quiet=True)
+        final_channels = int(verify_result.strip()) if verify_result.strip().isdigit() else 0
+        print(f"✅ 验证: 最终声道数 = {final_channels}")
+        
+    except Exception as e:
+        print(f"❌ 转换失败: {e}")
+        # 清理临时文件
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
 def run_command(command: List[str], quiet: bool = False) -> str:
     if not quiet: print(f"\n▶️  执行命令: {' '.join(command)}")
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
@@ -201,6 +228,7 @@ def parse_arguments():
     parser.add_argument("--source-dir", default="./source_files", help="存放原始下载文件和LRC的目录。")
     parser.add_argument("--output-dir", default="./final_mp3s", help="存放最终带歌词的MP3文件的目录。")
     parser.add_argument("--no-cleanup", action="store_true", help="保留源目录中的所有中间文件。")
+    parser.add_argument("--enhance-stereo", action="store_true", help="对单声道或伪立体声音频应用空间立体声增强。")
     return parser.parse_args()
 
 def main():
@@ -251,8 +279,23 @@ def main():
             dl_command.extend(["--write-sub", "--sub-lang", args.lang, "--sub-format", "srt"])
         dl_command.extend(["--download-sections", f"*{args.start}-{args.end}", "-o", output_template, args.url])
         run_command(dl_command)
+        
+        # 如果用户请求，进行空间立体声增强
+        if os.path.exists(source_mp3_path):
+            if args.enhance_stereo:
+                print("\nℹ️  用户请求空间立体声增强...")
+                convert_to_spatial_stereo(source_mp3_path)
+            else:
+                print("\nℹ️  未请求空间立体声增强，跳过。")
     else:
         print("\n✅ 检测到已存在的源MP3和SRT文件，跳过下载。")
+        # 即使是缓存文件，也根据用户请求应用空间立体声增强
+        if os.path.exists(source_mp3_path):
+            if args.enhance_stereo:
+                print("\nℹ️  用户请求对缓存文件进行空间立体声增强...")
+                convert_to_spatial_stereo(source_mp3_path)
+            else:
+                print("\nℹ️  未请求空间立体声增强，跳过。")
 
     if not os.path.exists(source_srt_path):
         sys.exit(f"❌ 错误: 字幕文件 {source_srt_path} 未能成功下载。请检查语言代码和网络连接。")

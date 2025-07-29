@@ -1,12 +1,13 @@
 # YouTube to MP3 with Lyrics
 
-A powerful Python tool that downloads YouTube videos, extracts audio segments, and embeds synchronized lyrics into MP3 files. This tool automatically downloads subtitles, converts them to LRC format, and embeds them directly into the MP3 metadata.
+A powerful Python tool that downloads YouTube videos, extracts audio segments, and embeds synchronized lyrics into MP3 files. This tool automatically downloads subtitles, converts them to LRC format, and embeds them directly into the MP3 metadata. It also features an optional spatial stereo enhancement for a richer audio experience.
 
 ![](images/2025-07-28_152226.png)
 
 ## Features
 
-- 🎵 **Audio Extraction**: Download and extract high-quality MP3 audio from YouTube videos
+- 🎵 **Audio Extraction**: Download and extract high-quality MP3 audio from YouTube videos.
+- 🎧 **Spatial Stereo Enhancement**: Apply spatial stereo enhancement to mono or pseudo-stereo audio for a wider, more immersive sound (optional).
 - 📝 **Subtitle Processing**: Automatically download and convert **SRT** subtitles to LRC format.
 - ✨ **Smart Subtitle Selection**: Intelligently detects all available manual and auto-generated subtitles, and uses the best available option.
 - ⏱️ **Time-based Segmentation**: Extract specific time segments from videos.
@@ -23,35 +24,35 @@ A powerful Python tool that downloads YouTube videos, extracts audio segments, a
 
 ## Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd YoutubeToMP3WithLyrics
-   ```
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/YoutubeToMP3WithLyrics.git
+    cd YoutubeToMP3WithLyrics
+    ```
 
-2. **Create and activate a virtual environment:**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+2.  **Create and activate a virtual environment:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
 
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+3.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-4. **Install system dependencies:**
-   - **Ubuntu/Debian:**
-     ```bash
-     sudo apt update
-     sudo apt install ffmpeg
-     ```
-   - **macOS:**
-     ```bash
-     brew install ffmpeg
-     ```
-   - **Windows:**
-     Download ffmpeg from [official website](https://ffmpeg.org/download.html) and add to PATH
+4.  **Install system dependencies:**
+    - **Ubuntu/Debian:**
+      ```bash
+      sudo apt update
+      sudo apt install ffmpeg
+      ```
+    - **macOS:**
+      ```bash
+      brew install ffmpeg
+      ```
+    - **Windows:**
+      Download ffmpeg from [official website](https://ffmpeg.org/download.html) and add to PATH.
 
 ## Usage
 
@@ -63,47 +64,48 @@ python youtube_to_mp3_with_lyrics.py "YOUTUBE_URL" -s START_TIME -e END_TIME
 
 ### Parameters
 
-- `url`: YouTube video URL (required)
-- `-s, --start`: Start time in MM:SS or HH:MM:SS format (required)
-- `-e, --end`: End time in MM:SS or HH:MM:SS format (required)
-- `-l, --lang`: Subtitle language code (default: 'en')
-- `--source-dir`: Directory for source files (default: './source_files')
-- `--output-dir`: Directory for final MP3 files (default: './final_mp3s')
-- `--no-cleanup`: Keep all intermediate files
+- `url`: YouTube video URL (required).
+- `-s, --start`: Start time in MM:SS or HH:MM:SS format (required).
+- `-e, --end`: End time in MM:SS or HH:MM:SS format (required).
+- `-l, --lang`: Subtitle language code (default: 'en').
+- `--source-dir`: Directory for source files (default: './source_files').
+- `--output-dir`: Directory for final MP3 files (default: './final_mp3s').
+- `--no-cleanup`: Keep all intermediate files.
+- `--enhance-stereo`: Apply spatial stereo enhancement to the audio.
 
 ### Examples
 
-1. **Extract a 2-minute segment with English subtitles:**
-   ```bash
-   python youtube_to_mp3_with_lyrics.py "https://www.youtube.com/watch?v=VIDEO_ID" -s 1:30 -e 3:30
-   ```
+1.  **Extract a 2-minute segment with English subtitles:**
+    ```bash
+    python youtube_to_mp3_with_lyrics.py "https://www.youtube.com/watch?v=VIDEO_ID" -s 1:30 -e 3:30
+    ```
 
-2. **Extract with Spanish subtitles:**
-   ```bash
-   python youtube_to_mp3_with_lyrics.py "https://www.youtube.com/watch?v=VIDEO_ID" -s 0:00 -e 5:00 -l es
-   ```
+2.  **Extract with Spanish subtitles and enhance audio:**
+    ```bash
+    python youtube_to_mp3_with_lyrics.py "https://www.youtube.com/watch?v=VIDEO_ID" -s 0:00 -e 5:00 -l es --enhance-stereo
+    ```
 
-3. **Custom directories and keep intermediate files:**
-   ```bash
-   python youtube_to_mp3_with_lyrics.py "https://www.youtube.com/watch?v=VIDEO_ID" -s 2:15 -e 4:45 --source-dir ./downloads --output-dir ./music --no-cleanup
-   ```
+3.  **Custom directories and keep intermediate files:**
+    ```bash
+    python youtube_to_mp3_with_lyrics.py "https://www.youtube.com/watch?v=VIDEO_ID" -s 2:15 -e 4:45 --source-dir ./downloads --output-dir ./music --no-cleanup
+    ```
 
 ## How It Works
 
-1. **Metadata Extraction**: Retrieves video title and ID from YouTube.
-2. **Subtitle Discovery**: Scans the video for all available manual and auto-generated subtitles and displays them.
-3. **Content Download**: Downloads the audio and the selected **SRT** subtitle file using yt-dlp.
-4. **Subtitle Processing**: Converts the **SRT** subtitles to LRC format with proper timing.
-5. **Audio Segmentation**: Extracts the specified time segment from the audio.
-6. **Lyrics Embedding**: Embeds synchronized lyrics into MP3 metadata using eyeD3.
-7. **File Organization**: Saves the final MP3 with embedded lyrics to the output directory.
-8. **Cleanup**: Optionally removes intermediate files.
+1.  **Metadata Extraction**: Retrieves video title and ID from YouTube.
+2.  **Subtitle Discovery**: Scans the video for all available manual and auto-generated subtitles and displays them in a clear, organized list.
+3.  **Content Download**: Downloads the audio and the selected **SRT** subtitle file using `yt-dlp`. The script intelligently chooses between manually created or auto-generated subtitles based on availability.
+4.  **Audio Enhancement (Optional)**: If requested, applies a spatial stereo filter chain using `ffmpeg` to enhance the audio's stereo width.
+5.  **Subtitle Processing**: Converts the downloaded **SRT** subtitles to LRC format with proper timing adjusted for the specified start time.
+6.  **Lyrics Embedding**: Embeds the synchronized LRC lyrics into the MP3's metadata using `eyed3`.
+7.  **File Organization**: Saves the final MP3 with embedded lyrics to the output directory.
+8.  **Cleanup**: Optionally removes intermediate files (source MP3, SRT, LRC).
 
 ## Dependencies
 
-- **yt-dlp**: YouTube video/audio downloader
-- **eyeD3**: MP3 metadata manipulation
-- **Standard libraries**: os, subprocess, sys, argparse, re, shutil, time, typing
+- **yt-dlp**: YouTube video/audio downloader.
+- **eyeD3**: MP3 metadata manipulation.
+- **Standard libraries**: os, subprocess, sys, argparse, re, shutil, time, typing.
 
 ## Subtitle Language Detection
 
@@ -112,32 +114,32 @@ The tool **automatically detects and lists all available subtitle languages** fo
 - **Manual Subtitles**: Higher quality, created by the video owner.
 - **Automatic Subtitles**: Auto-generated by YouTube, quality may vary.
 
-The script will prioritize manual subtitles. If the requested language is only available as an automatic subtitle, it will inform you and proceed. If the language is not found at all, it will display the list of all available languages for you to choose from.
+The script will always prioritize manual subtitles for the requested language. If a manual version is not found, it will automatically fall back to an available auto-generated version. If the language is not found at all, it will display the list of all available languages for you to choose from and exit.
 
 ## Error Handling
 
 The tool includes comprehensive error handling for:
 - Invalid YouTube URLs
-- Missing subtitles
-- Network connectivity issues
+- Missing subtitles, with a clear list of available options
+- Network connectivity issues during subtitle listing
 - File permission problems
 - Invalid time formats
-- Audio processing errors
+- Audio processing errors with `ffmpeg`
 
 ## Troubleshooting
 
-1. **"Command not found" errors**: Ensure yt-dlp and ffmpeg are properly installed
-2. **Permission errors**: Check write permissions for output directories
-3. **Subtitle not available**: The script will now list all available language codes for you. If your desired language isn't listed, it means YouTube does not provide it for that video.
-4. **Invalid time format**: Use MM:SS or HH:MM:SS format (e.g., 1:30 or 0:01:30)
+1.  **"Command not found" errors**: Ensure `yt-dlp` and `ffmpeg` are properly installed and accessible in your system's PATH.
+2.  **Permission errors**: Check write permissions for the source and output directories.
+3.  **Subtitle not available**: The script will list all available language codes. If your desired language isn't listed, it means YouTube does not provide it for that video.
+4.  **Invalid time format**: Use MM:SS or HH:MM:SS format (e.g., `1:30` or `0:01:30`).
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+1.  Fork the repository.
+2.  Create a feature branch.
+3.  Make your changes.
+4.  Add tests if applicable.
+5.  Submit a pull request.
 
 ## License
 
