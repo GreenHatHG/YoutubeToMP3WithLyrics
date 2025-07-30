@@ -88,6 +88,121 @@ def filter_subtitles(subs: List[Tuple[float, float, str]], start: float, end: fl
 def convert_to_lrc_lines(subs: List[Tuple[float, float, str]], offset: float) -> List[str]:
     return [f"{seconds_to_lrc_time(s - offset)}{t}" for s, _, t in subs if s - offset >= 0]
 
+def merge_audio_and_subtitle(audio_path: str, subtitle_path: str, output_dir: str, start_time: str = None, end_time: str = None, enhance_stereo: bool = False, source_dir: str = "./source_files", no_cleanup: bool = False):
+    """Merge audio file and subtitle file into MP3 with embedded lyrics"""
+    print("--- Starting Merge Mode ---")
+    
+    # Validate input files
+    if not os.path.exists(audio_path):
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+    if not os.path.exists(subtitle_path):
+        raise FileNotFoundError(f"Subtitle file not found: {subtitle_path}")
+    
+    # Create source directory for intermediate files
+    os.makedirs(source_dir, exist_ok=True)
+    
+    # Generate base names for source files
+    audio_basename = os.path.splitext(os.path.basename(audio_path))[0]
+    source_mp3_path = os.path.join(source_dir, f"{audio_basename}.mp3")
+    source_lrc_path = os.path.join(source_dir, f"{audio_basename}.lrc")
+    
+    # Create output directory and generate final output path
+    os.makedirs(output_dir, exist_ok=True)
+    final_output_path = os.path.join(output_dir, f"{audio_basename}.mp3")
+    
+    # Create temporary directory for processing (only if needed)
+    temp_dir = os.path.join(output_dir, ".temp_merge")
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    try:
+        # Step 1: Convert audio to MP3 if needed (check source_files first)
+        if os.path.exists(source_mp3_path) and not enhance_stereo:
+            print(f"✅ Found existing MP3 in source directory: {source_mp3_path}")
+            temp_mp3_path = source_mp3_path
+        else:
+            temp_mp3_path = source_mp3_path  # Save directly to source directory
+            audio_ext = os.path.splitext(audio_path)[1].lower()
+            
+            if audio_ext == '.mp3':
+                print("✅ Input is already MP3, copying to source directory...")
+                shutil.copy2(audio_path, temp_mp3_path)
+                # Apply spatial stereo enhancement to MP3 if requested
+                if enhance_stereo:
+                    print("🔧 Applying spatial stereo enhancement to MP3...")
+                    convert_to_spatial_stereo(temp_mp3_path)
+            else:
+                print(f"🔧 Converting {audio_ext} to MP3 and saving to source directory...")
+                convert_to_mp3(audio_path, temp_mp3_path, enhance_stereo)
+        
+        # Step 2: Convert SRT to LRC (check source_files first)
+        if os.path.exists(source_lrc_path):
+            print(f"✅ Found existing LRC in source directory: {source_lrc_path}")
+            temp_lrc_path = source_lrc_path
+        else:
+            temp_lrc_path = source_lrc_path  # Save directly to source directory
+            print("🔧 Converting SRT to LRC and saving to source directory...")
+            
+            all_subs = parse_srt_file(subtitle_path)
+            
+            if start_time and end_time:
+                # If time range is specified, filter and offset
+                start_sec, end_sec = parse_time(start_time), parse_time(end_time)
+                filtered_subs = filter_subtitles(all_subs, start_sec, end_sec)
+                lrc_lines = convert_to_lrc_lines(filtered_subs, offset=start_sec)
+                print(f"ℹ️  Applied time range filter: {start_time} to {end_time}")
+            else:
+                # If no time range specified, use all subtitles without offset
+                lrc_lines = convert_to_lrc_lines(all_subs, offset=0)
+                print("ℹ️  Using complete subtitles, no time filtering")
+            
+            with open(temp_lrc_path, 'w', encoding='utf-8') as f:
+                f.write(f"[by:youtube_to_mp3_with_lyrics.py - merge mode]\n" + '\n'.join(lrc_lines))
+            print(f"✅ SRT successfully converted to LRC: {temp_lrc_path}")
+        
+        # Step 3: Embed lyrics into MP3
+        print("🔧 Embedding lyrics into MP3...")
+        
+        # Copy MP3 to final location
+        shutil.copy2(temp_mp3_path, final_output_path)
+        
+        # Load and embed lyrics
+        audiofile = eyed3.load(final_output_path)
+        if audiofile is None:
+            raise IOError("eyed3 cannot load the MP3 file.")
+        if audiofile.tag is None:
+            audiofile.initTag(version=eyed3.id3.ID3_V2_3)
+        
+        with open(temp_lrc_path, "r", encoding="utf-8") as f:
+            lrc_text = f.read()
+        
+        audiofile.tag.lyrics.remove(u'')
+        audiofile.tag.lyrics.set(lrc_text)
+        audiofile.tag.save(version=eyed3.id3.ID3_V2_3, encoding='utf-8')
+        
+        print(f"✅ Successfully created MP3 with embedded lyrics: {final_output_path}")
+        print(f"   Final file size: {os.path.getsize(final_output_path) / 1024:.2f} KB")
+        
+        # Clean up source files if not using no-cleanup
+        if not no_cleanup:
+            print("\n▶️  Cleaning up source files...")
+            for f_path in [source_mp3_path, source_lrc_path]:
+                if os.path.exists(f_path):
+                    try: 
+                        os.remove(f_path)
+                        print(f"🗑️  Deleted: {f_path}")
+                    except OSError as e: 
+                        print(f"⚠️ Error cleaning up file: {e}")
+        else:
+            print(f"\n✅ Source files preserved in: {source_dir}")
+        
+    finally:
+        # Clean up temporary directory (only if we used it)
+        if os.path.exists(temp_dir) and temp_dir != source_dir:
+            shutil.rmtree(temp_dir)
+            print("🗑️  Cleaned up temporary files")
+    
+    print("--- 🎉 Merge completed successfully! ---")
+
 # ==============================================================================
 #  Main Execution Module (Refactored)
 # ==============================================================================
@@ -118,6 +233,37 @@ def convert_to_spatial_stereo(audio_path: str):
         # Clean up temporary files
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+def convert_to_mp3(input_path: str, output_path: str, enhance_stereo: bool = False):
+    """Convert any audio/video file to MP3 format"""
+    print(f"🔧 Converting {input_path} to MP3...")
+    
+    # Check if input file exists
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+    
+    # Create output directory if it doesn't exist
+    output_dir = os.path.dirname(output_path)
+    if output_dir:  # Only create directory if there's a directory path
+        os.makedirs(output_dir, exist_ok=True)
+    
+    # Basic conversion command
+    convert_cmd = ["ffmpeg", "-i", input_path, "-vn", "-acodec", "mp3", "-ab", "192k", "-ar", "44100", "-y", output_path]
+    
+    try:
+        run_command(convert_cmd)
+        print(f"✅ Successfully converted to: {output_path}")
+        
+        # Apply spatial stereo enhancement if requested
+        if enhance_stereo:
+            convert_to_spatial_stereo(output_path)
+            
+    except Exception as e:
+        print(f"❌ Conversion failed: {e}")
+        # Clean up output file if conversion failed
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        raise
 
 def run_command(command: List[str], quiet: bool = False) -> str:
     if not quiet: print(f"\n▶️  Executing command: {' '.join(command)}")
@@ -220,13 +366,23 @@ def print_subtitle_lists(manual_subs: Dict[str, str], auto_subs: Dict[str, str])
     print("------------------------------------")
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Standalone YouTube audio and lyrics download tool with caching and directory management support.", epilog="Example: python %(prog)s \"URL\" -s 0:00 -e 2:21\nIf no parameters are passed, defaults to no trimming, full video content and complete lrc", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("url", help="Complete URL of the target YouTube video.")
+    parser = argparse.ArgumentParser(description="Standalone YouTube audio and lyrics download tool with caching and directory management support.", epilog="Examples:\n  Download mode: python %(prog)s \"URL\" -s 0:00 -e 2:21 -o ./music\n  Merge mode: python %(prog)s --merge --audio audio.mp4 --subtitle subtitle.srt -o ./music", formatter_class=argparse.RawTextHelpFormatter)
+    
+    # Create mutually exclusive group for URL vs merge mode
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("url", nargs='?', help="Complete URL of the target YouTube video.")
+    group.add_argument("--merge", action="store_true", help="Merge mode: combine existing audio and subtitle files.")
+    
+    # Merge mode specific arguments
+    parser.add_argument("--audio", help="Path to audio file (supports mp3, mp4, wav, etc.). Required in merge mode.")
+    parser.add_argument("--subtitle", help="Path to subtitle file (.srt format). Required in merge mode.")
+    
+    # Common arguments
+    parser.add_argument("-o", "--output", help="Output directory for final MP3 files (default: './final_mp3s').")
     parser.add_argument("-s", "--start", help="Trim start time (format: MM:SS or HH:MM:SS). If not provided, starts from beginning.")
     parser.add_argument("-e", "--end", help="Trim end time (format: MM:SS or HH:MM:SS). If not provided, goes to the end.")
     parser.add_argument("-l", "--lang", default="en", help="Subtitle language code (default is 'en').")
     parser.add_argument("--source-dir", default="./source_files", help="Directory for storing original downloaded files and LRC.")
-    parser.add_argument("--output-dir", default="./final_mp3s", help="Directory for storing final MP3 files with lyrics.")
     parser.add_argument("--no-cleanup", action="store_true", help="Keep all intermediate files in source directory.")
     parser.add_argument("--enhance-stereo", action="store_true", help="Apply spatial stereo enhancement to mono or pseudo-stereo audio.")
     return parser.parse_args()
@@ -235,13 +391,47 @@ def main():
     args = parse_arguments()
     print("--- Process Started ---")
 
+    # Handle merge mode
+    if args.merge:
+        # Validate required arguments for merge mode
+        if not args.audio:
+            sys.exit("❌ Error: --audio is required in merge mode")
+        if not args.subtitle:
+            sys.exit("❌ Error: --subtitle is required in merge mode")
+        
+        # Determine output directory for merge mode
+        merge_output_dir = args.output if args.output else "./final_mp3s"
+        
+        try:
+            merge_audio_and_subtitle(
+                audio_path=args.audio,
+                subtitle_path=args.subtitle,
+                output_dir=merge_output_dir,
+                start_time=args.start,
+                end_time=args.end,
+                enhance_stereo=args.enhance_stereo,
+                source_dir=args.source_dir,
+                no_cleanup=args.no_cleanup
+            )
+            return
+        except Exception as e:
+            sys.exit(f"❌ Merge failed: {e}")
+
+    # Original YouTube download mode
+    if not args.url:
+        sys.exit("❌ Error: URL is required when not in merge mode")
+
     try:
         metadata = get_video_metadata(args.url)
         final_base_name = f"{metadata['title']} [{metadata['id']}]"
         source_base_name = metadata['id']
+        
+        # Determine output directory: use --output if provided, otherwise default to ./final_mp3s
+        output_dir = args.output if args.output else "./final_mp3s"
+        
         os.makedirs(args.source_dir, exist_ok=True)
-        os.makedirs(args.output_dir, exist_ok=True)
-        final_mp3_path = os.path.join(args.output_dir, f"{final_base_name}.mp3")
+        os.makedirs(output_dir, exist_ok=True)
+        final_mp3_path = os.path.join(output_dir, f"{final_base_name}.mp3")
         source_mp3_path = os.path.join(args.source_dir, f"{source_base_name}.mp3")
         source_srt_path = os.path.join(args.source_dir, f"{source_base_name}.{args.lang}.srt")
         source_lrc_path = os.path.join(args.source_dir, f"{source_base_name}.lrc")
