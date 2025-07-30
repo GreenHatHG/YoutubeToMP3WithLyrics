@@ -59,14 +59,14 @@ A powerful Python tool that downloads YouTube videos, extracts audio segments, a
 ### Basic Usage
 
 ```bash
-python youtube_to_mp3_with_lyrics.py "YOUTUBE_URL" -s START_TIME -e END_TIME
+python youtube_to_mp3_with_lyrics.py "YOUTUBE_URL" [OPTIONS]
 ```
 
 ### Parameters
 
 - `url`: YouTube video URL (required).
-- `-s, --start`: Start time in MM:SS or HH:MM:SS format (required).
-- `-e, --end`: End time in MM:SS or HH:MM:SS format (required).
+- `-s, --start`: Start time in MM:SS or HH:MM:SS format (optional). If not provided, the video starts from the beginning.
+- `-e, --end`: End time in MM:SS or HH:MM:SS format (optional). If not provided, the video goes to the end.
 - `-l, --lang`: Subtitle language code (default: 'en').
 - `--source-dir`: Directory for source files (default: './source_files').
 - `--output-dir`: Directory for final MP3 files (default: './final_mp3s').
@@ -75,17 +75,22 @@ python youtube_to_mp3_with_lyrics.py "YOUTUBE_URL" -s START_TIME -e END_TIME
 
 ### Examples
 
-1.  **Extract a 2-minute segment with English subtitles:**
+1.  **Download a full video with English subtitles:**
+    ```bash
+    python youtube_to_mp3_with_lyrics.py "https://www.youtube.com/watch?v=VIDEO_ID"
+    ```
+
+2.  **Extract a 2-minute segment with English subtitles:**
     ```bash
     python youtube_to_mp3_with_lyrics.py "https://www.youtube.com/watch?v=VIDEO_ID" -s 1:30 -e 3:30
     ```
 
-2.  **Extract with Spanish subtitles and enhance audio:**
+3.  **Extract with Spanish subtitles and enhance audio:**
     ```bash
     python youtube_to_mp3_with_lyrics.py "https://www.youtube.com/watch?v=VIDEO_ID" -s 0:00 -e 5:00 -l es --enhance-stereo
     ```
 
-3.  **Custom directories and keep intermediate files:**
+4.  **Custom directories and keep intermediate files:**
     ```bash
     python youtube_to_mp3_with_lyrics.py "https://www.youtube.com/watch?v=VIDEO_ID" -s 2:15 -e 4:45 --source-dir ./downloads --output-dir ./music --no-cleanup
     ```
