@@ -11,7 +11,7 @@ import time
 from typing import List, Tuple, Optional, Dict
 
 # ==============================================================================
-#  内部 SRT 转 LRC 转换模块
+#  Internal SRT to LRC Conversion Module
 # ==============================================================================
 def parse_time(time_str: str) -> float:
     """Parse time string in format HH:MM:SS.mmm or MM:SS.mmm"""
@@ -19,7 +19,7 @@ def parse_time(time_str: str) -> float:
     parts = time_str.strip().split(':')
     if len(parts) == 3: h, m, s = int(parts[0]), int(parts[1]), float(parts[2])
     elif len(parts) == 2: h, m, s = 0, int(parts[0]), float(parts[1])
-    else: raise ValueError(f"无法解析时间格式: {time_str}")
+    else: raise ValueError(f"Unable to parse time format: {time_str}")
     return h * 3600 + m * 60 + s
 
 def seconds_to_lrc_time(seconds: float) -> str:
@@ -66,7 +66,7 @@ def parse_srt_file(srt_path: str) -> List[Tuple[float, float, str]]:
                 if text_content:
                     subtitles.append((start_sec, end_sec, text_content))
             except ValueError as e:
-                print(f"警告: 跳过字幕块: {lines[0]} - {e}")
+                print(f"Warning: Skipping subtitle block: {lines[0]} - {e}")
     
     # Sort by start time and remove duplicates
     subtitles = sorted(subtitles, key=lambda x: x[0])
@@ -89,62 +89,62 @@ def convert_to_lrc_lines(subs: List[Tuple[float, float, str]], offset: float) ->
     return [f"{seconds_to_lrc_time(s - offset)}{t}" for s, _, t in subs if s - offset >= 0]
 
 # ==============================================================================
-#  主执行模块 (已重构)
+#  Main Execution Module (Refactored)
 # ==============================================================================
 
 
 def convert_to_spatial_stereo(audio_path: str):
-    """转换为空间立体声"""
-    print("🔧 转换为空间立体声...")
+    """Convert to spatial stereo"""
+    print("🔧 Converting to spatial stereo...")
     temp_path = audio_path + ".temp.mp3"
     
-    # 使用空间立体声滤镜
+    # Use spatial stereo filter
     filter_chain = "extrastereo=m=2.5,haas=level_in=1:level_out=1:side_gain=0.8,volume=0.7"
     convert_cmd = ["ffmpeg", "-i", audio_path, "-af", filter_chain, "-ac", "2", "-ar", "44100", "-b:a", "192k", "-y", temp_path]
     
     try:
         run_command(convert_cmd)
         os.replace(temp_path, audio_path)
-        print("✅ 空间立体声转换完成！耳机两边现在应该有明显的立体声效果")
+        print("✅ Spatial stereo conversion completed! Both sides of headphones should now have distinct stereo effects")
         
-        # 验证转换结果
+        # Verify conversion result
         verify_cmd = ["ffprobe", "-v", "quiet", "-show_entries", "stream=channels", "-of", "csv=p=0", audio_path]
         verify_result = run_command(verify_cmd, quiet=True)
         final_channels = int(verify_result.strip()) if verify_result.strip().isdigit() else 0
-        print(f"✅ 验证: 最终声道数 = {final_channels}")
+        print(f"✅ Verification: Final channel count = {final_channels}")
         
     except Exception as e:
-        print(f"❌ 转换失败: {e}")
-        # 清理临时文件
+        print(f"❌ Conversion failed: {e}")
+        # Clean up temporary files
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
 def run_command(command: List[str], quiet: bool = False) -> str:
-    if not quiet: print(f"\n▶️  执行命令: {' '.join(command)}")
+    if not quiet: print(f"\n▶️  Executing command: {' '.join(command)}")
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
     stdout, stderr = process.communicate()
     if process.returncode != 0:
         if quiet and "--list-subs" in command and (stdout.strip() or stderr.strip()):
              pass
         else:
-            print(f"\n❌ 命令执行失败，返回码: {process.returncode}")
-            print(f"   命令: {' '.join(command)}")
-            print(f"   错误信息: {stderr.strip()}")
+            print(f"\n❌ Command execution failed, return code: {process.returncode}")
+            print(f"   Command: {' '.join(command)}")
+            print(f"   Error message: {stderr.strip()}")
             sys.exit(1)
     if not quiet:
-        print("✅ 命令执行成功")
+        print("✅ Command executed successfully")
     return stdout + stderr
 
 def get_video_metadata(url: str) -> Dict[str, str]:
-    print("ℹ️  正在获取视频元数据...")
+    print("ℹ️  Getting video metadata...")
     title_raw = run_command(["yt-dlp", "--get-title", url], quiet=False).strip()
     title = re.sub(r'[\\/*?:"<>|]', '_', title_raw)
     video_id = run_command(["yt-dlp", "--get-id", url], quiet=False).strip()
-    print(f"✅  获取成功: [ID: {video_id}, 标题: {title}]")
+    print(f"✅  Retrieved successfully: [ID: {video_id}, Title: {title}]")
     return {"id": video_id, "title": title}
 
 def get_available_subtitles(url: str) -> Tuple[Dict[str, str], Dict[str, str]]:
-    print("ℹ️  正在查询可用字幕...")
+    print("ℹ️  Querying available subtitles...")
     max_retries = 3
     retry_delay = 5  # seconds
 
@@ -184,21 +184,21 @@ def get_available_subtitles(url: str) -> Tuple[Dict[str, str], Dict[str, str]]:
                     auto_subs[lang_code] = lang_name
         
         if manual_subs or auto_subs:
-            print("✅ 字幕查询成功。")
+            print("✅ Subtitle query successful.")
             return manual_subs, auto_subs
 
         if attempt < max_retries - 1:
-            print(f"⚠️  未找到任何字幕。可能是临时问题，将在 {retry_delay} 秒后重试 ({attempt + 1}/{max_retries})...")
+            print(f"⚠️  No subtitles found. This might be a temporary issue, retrying in {retry_delay} seconds ({attempt + 1}/{max_retries})...")
             time.sleep(retry_delay)
         else:
-            print("⚠️  多次尝试后仍未获取到字幕列表。")
+            print("⚠️  Still unable to get subtitle list after multiple attempts.")
     
     return {}, {}
 
 def print_subtitle_lists(manual_subs: Dict[str, str], auto_subs: Dict[str, str]):
     def print_in_columns(title: str, subs: Dict[str, str]):
         if not subs:
-            print(f"  {title} 无可用的字幕。")
+            print(f"  {title} No available subtitles.")
             return
         print(f"  {title}")
         items = [f"{code}: {name}" for code, name in sorted(subs.items())]
@@ -213,27 +213,27 @@ def print_subtitle_lists(manual_subs: Dict[str, str], auto_subs: Dict[str, str])
             row_items = items[i:i+num_cols]
             line = "".join(item.ljust(col_width) for item in row_items)
             print(f"      {line}")
-    print("--- 字幕可用性详情 ---")
-    print_in_columns("📖 可用的手动字幕:", manual_subs)
+    print("--- Subtitle Availability Details ---")
+    print_in_columns("📖 Available Manual Subtitles:", manual_subs)
     print("")
-    print_in_columns("🤖 可用的自动字幕:", auto_subs)
-    print("------------------------")
+    print_in_columns("🤖 Available Auto Subtitles:", auto_subs)
+    print("------------------------------------")
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="独立的YouTube音频和歌词下载工具，支持缓存和目录管理。", epilog="示例: python %(prog)s \"URL\" -s 0:00 -e 2:21", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("url", help="目标YouTube视频的完整URL。")
-    parser.add_argument("-s", "--start", required=True, help="截取开始时间 (格式: MM:SS 或 HH:MM:SS)。")
-    parser.add_argument("-e", "--end", required=True, help="截取结束时间 (格式: MM:SS 或 HH:MM:SS)。")
-    parser.add_argument("-l", "--lang", default="en", help="字幕语言代码 (默认为 'en')。")
-    parser.add_argument("--source-dir", default="./source_files", help="存放原始下载文件和LRC的目录。")
-    parser.add_argument("--output-dir", default="./final_mp3s", help="存放最终带歌词的MP3文件的目录。")
-    parser.add_argument("--no-cleanup", action="store_true", help="保留源目录中的所有中间文件。")
-    parser.add_argument("--enhance-stereo", action="store_true", help="对单声道或伪立体声音频应用空间立体声增强。")
+    parser = argparse.ArgumentParser(description="Standalone YouTube audio and lyrics download tool with caching and directory management support.", epilog="Example: python %(prog)s \"URL\" -s 0:00 -e 2:21\nIf no parameters are passed, defaults to no trimming, full video content and complete lrc", formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("url", help="Complete URL of the target YouTube video.")
+    parser.add_argument("-s", "--start", help="Trim start time (format: MM:SS or HH:MM:SS). If not provided, starts from beginning.")
+    parser.add_argument("-e", "--end", help="Trim end time (format: MM:SS or HH:MM:SS). If not provided, goes to the end.")
+    parser.add_argument("-l", "--lang", default="en", help="Subtitle language code (default is 'en').")
+    parser.add_argument("--source-dir", default="./source_files", help="Directory for storing original downloaded files and LRC.")
+    parser.add_argument("--output-dir", default="./final_mp3s", help="Directory for storing final MP3 files with lyrics.")
+    parser.add_argument("--no-cleanup", action="store_true", help="Keep all intermediate files in source directory.")
+    parser.add_argument("--enhance-stereo", action="store_true", help="Apply spatial stereo enhancement to mono or pseudo-stereo audio.")
     return parser.parse_args()
 
 def main():
     args = parse_arguments()
-    print("--- 流程开始 ---")
+    print("--- Process Started ---")
 
     try:
         metadata = get_video_metadata(args.url)
@@ -246,91 +246,110 @@ def main():
         source_srt_path = os.path.join(args.source_dir, f"{source_base_name}.{args.lang}.srt")
         source_lrc_path = os.path.join(args.source_dir, f"{source_base_name}.lrc")
     except Exception as e:
-        sys.exit(f"❌ 无法获取视频元数据: {e}")
+        sys.exit(f"❌ Unable to get video metadata: {e}")
 
     if os.path.exists(final_mp3_path):
-        print(f"✅ 任务已完成。最终文件已存在于: {final_mp3_path}")
+        print(f"✅ Task completed. Final file already exists at: {final_mp3_path}")
         sys.exit(0)
 
     manual_subs, auto_subs = get_available_subtitles(args.url)
     
     use_auto_sub = False
     if args.lang in manual_subs:
-        print(f"✅ 找到请求的手动字幕: '{args.lang}' ({manual_subs[args.lang]})")
+        print(f"✅ Found requested manual subtitles: '{args.lang}' ({manual_subs[args.lang]})")
     elif args.lang in auto_subs:
-        print(f"\n⚠️  警告: 未找到手动字幕 '{args.lang}'。将使用找到的自动生成字幕替代。")
+        print(f"\n⚠️  Warning: Manual subtitles '{args.lang}' not found. Will use auto-generated subtitles instead.")
         print_subtitle_lists(manual_subs, auto_subs)
         use_auto_sub = True
     else:
-        print(f"\n❌ 错误: 找不到请求的字幕语言 '{args.lang}'。")
+        print(f"\n❌ Error: Cannot find requested subtitle language '{args.lang}'.")
         if not manual_subs and not auto_subs:
-            print("   原因: 无法从 YouTube 获取任何可用的字幕列表。这可能是临时的网络问题或视频限制。请稍后重试。")
+            print("   Reason: Unable to get any available subtitle list from YouTube. This might be a temporary network issue or video restriction. Please try again later.")
         else:
              print_subtitle_lists(manual_subs, auto_subs)
         sys.exit(1)
 
     if not os.path.exists(source_mp3_path) or not os.path.exists(source_srt_path):
-        print("\nℹ️  源文件不存在，开始下载...")
+        print("\nℹ️  Source files don't exist, starting download...")
         output_template = os.path.join(args.source_dir, f"{source_base_name}.%(ext)s")
         dl_command = ["yt-dlp", "-x", "--audio-format", "mp3"]
         if use_auto_sub:
             dl_command.extend(["--write-auto-sub", "--sub-lang", args.lang, "--sub-format", "srt"])
         else:
             dl_command.extend(["--write-sub", "--sub-lang", args.lang, "--sub-format", "srt"])
-        dl_command.extend(["--download-sections", f"*{args.start}-{args.end}", "-o", output_template, args.url])
+        
+        # Only add trimming parameters when start and end times are provided
+        if args.start and args.end:
+            dl_command.extend(["--download-sections", f"*{args.start}-{args.end}"])
+            print(f"ℹ️  Will trim segment: {args.start} to {args.end}")
+        else:
+            print("ℹ️  No time range specified, will download complete video")
+        
+        dl_command.extend(["-o", output_template, args.url])
         run_command(dl_command)
         
-        # 如果用户请求，进行空间立体声增强
+        # Apply spatial stereo enhancement if user requested
         if os.path.exists(source_mp3_path):
             if args.enhance_stereo:
-                print("\nℹ️  用户请求空间立体声增强...")
+                print("\nℹ️  User requested spatial stereo enhancement...")
                 convert_to_spatial_stereo(source_mp3_path)
             else:
-                print("\nℹ️  未请求空间立体声增强，跳过。")
+                print("\nℹ️  Spatial stereo enhancement not requested, skipping.")
     else:
-        print("\n✅ 检测到已存在的源MP3和SRT文件，跳过下载。")
-        # 即使是缓存文件，也根据用户请求应用空间立体声增强
+        print("\n✅ Detected existing source MP3 and SRT files, skipping download.")
+        # Apply spatial stereo enhancement to cached files if user requested
         if os.path.exists(source_mp3_path):
             if args.enhance_stereo:
-                print("\nℹ️  用户请求对缓存文件进行空间立体声增强...")
+                print("\nℹ️  User requested spatial stereo enhancement for cached files...")
                 convert_to_spatial_stereo(source_mp3_path)
             else:
-                print("\nℹ️  未请求空间立体声增强，跳过。")
+                print("\nℹ️  Spatial stereo enhancement not requested, skipping.")
 
     if not os.path.exists(source_srt_path):
-        sys.exit(f"❌ 错误: 字幕文件 {source_srt_path} 未能成功下载。请检查语言代码和网络连接。")
+        sys.exit(f"❌ Error: Subtitle file {source_srt_path} failed to download. Please check language code and network connection.")
     if not os.path.exists(source_lrc_path):
-        print("\n▶️  将 SRT 转换为 LRC...")
+        print("\n▶️  Converting SRT to LRC...")
         try:
-            start_sec, end_sec = parse_time(args.start), parse_time(args.end)
             all_subs = parse_srt_file(source_srt_path)
-            filtered_subs = filter_subtitles(all_subs, start_sec, end_sec)
-            lrc_lines = convert_to_lrc_lines(filtered_subs, offset=start_sec)
-            with open(source_lrc_path, 'w', encoding='utf-8') as f: f.write(f"[by:youtube_to_mp3_with_lyrics.py]\n" + '\n'.join(lrc_lines))
-            print(f"✅ SRT 已成功转换为 {source_lrc_path}")
-        except Exception as e: sys.exit(f"❌ SRT转换LRC时发生错误: {e}")
+            
+            if args.start and args.end:
+                # If time range is specified, filter and offset
+                start_sec, end_sec = parse_time(args.start), parse_time(args.end)
+                filtered_subs = filter_subtitles(all_subs, start_sec, end_sec)
+                lrc_lines = convert_to_lrc_lines(filtered_subs, offset=start_sec)
+                print(f"ℹ️  Filtered subtitle time range: {args.start} to {args.end}")
+            else:
+                # If no time range specified, use all subtitles without offset
+                lrc_lines = convert_to_lrc_lines(all_subs, offset=0)
+                print("ℹ️  Using complete subtitles, no time offset")
+            
+            with open(source_lrc_path, 'w', encoding='utf-8') as f: 
+                f.write(f"[by:youtube_to_mp3_with_lyrics.py]\n" + '\n'.join(lrc_lines))
+            print(f"✅ SRT successfully converted to {source_lrc_path}")
+        except Exception as e: 
+            sys.exit(f"❌ Error occurred during SRT to LRC conversion: {e}")
     else:
-        print("✅ 检测到已存在的LRC文件，跳过转换。")
-    print("\n▶️  开始嵌入歌词并生成最终文件...")
+        print("✅ Detected existing LRC file, skipping conversion.")
+    print("\n▶️  Starting to embed lyrics and generate final file...")
     try:
         shutil.copy2(source_mp3_path, final_mp3_path)
         audiofile = eyed3.load(final_mp3_path)
-        if audiofile is None: raise IOError("eyed3 无法加载最终的MP3文件。")
+        if audiofile is None: raise IOError("eyed3 cannot load the final MP3 file.")
         if audiofile.tag is None: audiofile.initTag(version=eyed3.id3.ID3_V2_3)
         with open(source_lrc_path, "r", encoding="utf-8") as f: lrc_text = f.read()
         audiofile.tag.lyrics.remove(u'')
         audiofile.tag.lyrics.set(lrc_text)
         audiofile.tag.save(version=eyed3.id3.ID3_V2_3, encoding='utf-8')
-        print(f"✅ 成功将歌词嵌入并保存到: {final_mp3_path}")
-        print(f"   最终文件大小: {os.path.getsize(final_mp3_path) / 1024:.2f} KB")
-    except Exception as e: sys.exit(f"❌ 嵌入歌词时发生错误: {e}")
+        print(f"✅ Successfully embedded lyrics and saved to: {final_mp3_path}")
+        print(f"   Final file size: {os.path.getsize(final_mp3_path) / 1024:.2f} KB")
+    except Exception as e: sys.exit(f"❌ Error occurred while embedding lyrics: {e}")
     if not args.no_cleanup:
-        print("\n▶️  清理源文件...")
+        print("\n▶️  Cleaning up source files...")
         for f_path in [source_mp3_path, source_srt_path, source_lrc_path]:
             if os.path.exists(f_path):
-                try: os.remove(f_path); print(f"🗑️  已删除: {f_path}")
-                except OSError as e: print(f"⚠️ 清理文件时出错: {e}")
-    print("\n--- 🎉 所有流程已成功完成！ ---")
+                try: os.remove(f_path); print(f"🗑️  Deleted: {f_path}")
+                except OSError as e: print(f"⚠️ Error cleaning up file: {e}")
+    print("\n--- 🎉 All processes completed successfully! ---")
 
 if __name__ == "__main__":
     main()
